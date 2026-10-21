@@ -18,7 +18,8 @@ test('built module imports stay inside a GitHub Pages project subpath and resolv
     for (const match of content.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
       const dependency = new URL(match[1], source);
       assert.ok(dependency.href.startsWith(prefix), `${file}: ${match[1]} escapes the deployment subpath`);
-      await assert.doesNotReject(access(path.join(dist, decodeURIComponent(dependency.href.slice(prefix.length)))));
+      await assert.doesNotReject(access(path.join(dist, decodeURIComponent(dependency.pathname.slice(new URL(prefix).pathname.length)))));
+      assert.match(dependency.search, /^\?v=[a-f\d]{12}$/, 'all modules share a build fingerprint to avoid mixing cached versions');
     }
   }
 });

@@ -1,0 +1,15 @@
+name: Feature request
+description: Describe a network-debugging problem Traceglass could solve.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: A concrete workflow and example are more useful than a feature name alone.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Suggested behavior
+      description: Describe what you would do and what you would expect to happen.

@@ -1,0 +1,22 @@
+{
+  "name": "traceglass",
+  "version": "1.0.0",
+  "description": "A local HAR workbench. Find slow requests, compare captures, and share less sensitive traces.",
+  "type": "module",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/fkalsasx/traceglass.git" },
+  "bugs": { "url": "https://github.com/fkalsasx/traceglass/issues" },
+  "engines": { "node": ">=22" },
+  "bin": { "traceglass": "bin/traceglass.mjs" },
+  "exports": { ".": "./lib/index.js" },
+  "files": ["bin", "lib", "web", "scripts/serve.mjs", "README.md", "LICENSE"],
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "dev": "node scripts/serve.mjs",
+    "test": "node --test",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build.mjs",
+    "demo": "node bin/traceglass.mjs analyze examples/checkout.har"
+  },
+  "keywords": ["har", "network", "waterfall", "devtools", "performance", "privacy", "cli", "local-first"]
+}

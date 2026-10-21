@@ -1,0 +1,25 @@
+name: Bug report
+description: Report a reproducible problem without sharing private capture data.
+body:
+  - type: markdown
+    attributes:
+      value: Please use synthetic HAR data. Never paste live tokens, cookies or private URLs. See SECURITY.md for security issues.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include expected behavior and the steps to reproduce.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser / OS / Node.js version, Traceglass version, browser or CLI.
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: Small synthetic reproduction
+      description: Optional sample with no real personal data or credentials.

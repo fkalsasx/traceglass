@@ -6,6 +6,7 @@
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/fkalsasx/traceglass.git" },
   "bugs": { "url": "https://github.com/fkalsasx/traceglass/issues" },
+  "homepage": "https://fkalsasx.github.io/traceglass/",
   "engines": { "node": ">=22" },
   "bin": { "traceglass": "bin/traceglass.mjs" },
   "exports": { ".": "./lib/index.js" },

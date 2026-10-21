@@ -2,7 +2,7 @@
 
 **HAR kayıtlarını anlaşılır bir ağ analizine dönüştüren, cihazında çalışan geliştirici aracı.**
 
-[English](README.md) · [Gizlilik politikası](docs/PRIVACY.md) · [Hesaplama yöntemi](docs/METHODOLOGY.md)
+[Canlı demo](https://fkalsasx.github.io/traceglass/) · [English](README.md) · [Gizlilik politikası](docs/PRIVACY.md) · [Hesaplama yöntemi](docs/METHODOLOGY.md)
 
 ![Traceglass çalışma alanı](docs/workspace.jpg)
 

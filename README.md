@@ -15,7 +15,7 @@ Waterfall viewer · Before/after comparison · Sanitized exports · CI performan
 ![Runtime dependencies: 0](https://img.shields.io/badge/runtime_dependencies-0-153e35)
 ![Node.js 22+](https://img.shields.io/badge/node-%E2%89%A522-739959)
 
-[Quick start](#quick-start) · [CLI](#use-it-in-your-terminal) · [Privacy](#what-stays-private) · [Türkçe](README.tr.md)
+[Live demo](https://fkalsasx.github.io/traceglass/) · [Quick start](#quick-start) · [CLI](#use-it-in-your-terminal) · [Privacy](#what-stays-private) · [Türkçe](README.tr.md)
 
 </div>
 

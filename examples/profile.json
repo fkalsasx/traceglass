@@ -1,0 +1,13 @@
+{
+  "slowWaitMs": 600,
+  "slowWaitRatio": 0.6,
+  "largeTransferBytes": 500000,
+  "regressionMs": 100,
+  "regressionPercent": 20,
+  "budgets": {
+    "p95Ms": 1500,
+    "transferBytes": 2000000,
+    "requests": 100,
+    "failed": 0
+  }
+}

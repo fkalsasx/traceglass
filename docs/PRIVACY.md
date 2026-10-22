@@ -6,7 +6,7 @@ Traceglass is a local analysis tool, not a complete data loss prevention system.
 
 Analysis does not make network requests. The browser fetches its own application assets from its origin. The Node CLI uses local file IO. Neither loads remote resources from request URLs found in a HAR.
 
-The browser worker retains the current raw HAR in memory so it can create a sanitized export. The main thread receives a reduced view model. No browser storage APIs or analytics are used. Baselines are held as reduced analysis, not as raw documents. File names appear in the interface and reports.
+The browser worker retains the current and baseline raw HAR documents in memory so it can reanalyze page scopes and profiles. The main thread receives a reduced view model. No browser storage APIs or analytics are used. Removing the baseline releases its document reference. File names and page reference IDs appear in the interface and reports. Reloading clears both captures and the analysis profile.
 
 ## Sanitized HAR
 
@@ -34,6 +34,14 @@ A domain can identify an internal service. A path may include a signed token, em
 Markdown reports include a summary, findings, limitations, the ten slowest URLs and optional endpoint comparisons. Query values, credentials and fragments are hidden. Raw headers and bodies are absent. Untrusted text is escaped to avoid active Markdown links/images and injected table rows.
 
 CLI JSON contains the reduced analysis model, including selected response metadata (`mime`, `cacheControl`, `protocol`) and page reference IDs. Treat these and filenames as potentially sensitive. For exchanging a capture, prefer reviewing the reconstructed sanitized HAR rather than assuming every analysis field is safe.
+
+## HTML, CSV and scope
+
+HTML reports are self-contained passive documents with inline styles and SVG charts. They contain no scripts, external assets, remote links or embedded raw HAR. Their Content Security Policy blocks resource loading. The report includes metadata, budget results, findings, up to 20 slow requests, 30 domains and 50 changed endpoints. It can be printed or saved as PDF using the browser.
+
+CSV exports contain method, redacted URL, status, type, offset, duration, wait, transfer size and page reference. Cells are quoted and formula-leading characters are prefixed with an apostrophe to reduce spreadsheet formula injection. Page reference IDs remain potentially sensitive. CSV handling varies between spreadsheet applications; review before opening or sharing untrusted exports.
+
+Browser exports include the entire selected page scope, independent of table search. Sanitized HAR exports omit malformed/skipped requests and use original entry IDs to select only the analyzed page. CLI `analyze --page` and `--query` define the scope of its HTML/Markdown/CSV/JSON output; the `sanitize` command still sanitizes the whole input. Do not assume a sanitized HAR preserves the original capture byte-for-byte.
 
 ## Git
 

@@ -1,6 +1,13 @@
 name: Deploy demo
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'lib/**'
+      - 'scripts/build.mjs'
+      - '.github/workflows/pages.yml'
 permissions:
   contents: read
   pages: write

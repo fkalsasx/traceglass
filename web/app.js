@@ -1,4 +1,5 @@
-import { formatBytes, formatDuration, MAX_BYTES } from '../lib/index.js';
+import { formatBytes, formatDuration, MAX_BYTES, compileQuery, normalizeConfig } from '../lib/index.js';
+import { renderOverview as paintOverview, renderBudgets as paintBudgets, renderCompare, pageOptions } from './panels.js';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -29,7 +30,7 @@ if (!navigator.platform?.includes('Mac')) $('#open-button kbd').textContent = 'C
 
 const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
 const pending = new Map();
-let sequence = 0, analysis = null, comparison = null, sample = true, currentView = 'waterfall';
+let sequence = 0, analysis = null, comparison = null, baselineMeta = null, sample = true, currentView = 'overview';
 let limit = 100, findingFilter = null, toastTimer, searchTimer, loading = false;
 worker.onmessage = ({ data }) => {
   const task = pending.get(data.id);
@@ -78,7 +79,7 @@ async function loadFile(file, baseline = false) {
     const result = await request(baseline ? 'baseline' : 'load', { text, name: file.name });
     if (!baseline) { sample = false; resetFilters(); }
     applyResult(result);
-    setView(baseline ? 'compare' : 'waterfall');
+    setView(baseline ? 'compare' : 'overview');
     toast(baseline ? 'Baseline added. Comparing endpoint medians.' : `${analysis.summary.count.toLocaleString()} requests analyzed. Your file stays on this device.`);
   });
 }
@@ -88,12 +89,13 @@ async function loadDemo(baseline = false) {
     const result = await request(baseline ? 'baseline' : 'load', { demo: true, name: baseline ? 'checkout-before.har' : 'checkout.har' });
     if (!baseline) { sample = true; resetFilters(); }
     applyResult(result);
-    setView(baseline ? 'compare' : 'waterfall');
+    setView(baseline ? 'compare' : 'overview');
   });
 }
 function applyResult(result) {
   analysis = result.analysis;
   comparison = result.comparison;
+  baselineMeta = result.baselineMeta;
   if (!analysis) return;
   $('#capture-name').textContent = analysis.name;
   $('#capture-meta').textContent = `${new Date(analysis.summary.start).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })} · ${analysis.summary.domains} domains · HAR 1.2`;
@@ -101,7 +103,24 @@ function applyResult(result) {
   $('#finding-count').textContent = analysis.findings.length;
   $('#warnings').hidden = !analysis.warnings.length;
   $('#warnings').innerHTML = analysis.warnings.map(w => `<p>${esc(w)}</p>`).join('');
-  renderStats(); renderInsight(); renderRequests(); renderFindings(); renderComparison();
+  $('#page-filter').innerHTML = pageOptions(analysis.pages, analysis.pageId);
+  renderStats(); renderInsight(); renderRequests(); renderFindings(); renderComparison(); renderOverview(); renderBudgets();
+}
+function useQuery(query) {
+  resetFilters(); $('#search').value = query; renderRequests(); setView('waterfall');
+}
+function inspectFinding(id) {
+  resetFilters(); findingFilter = new Set(analysis.findings.find(f => f.id === id).entryIds);
+  renderRequests(); setView('waterfall');
+}
+function renderOverview() {
+  paintOverview(analysis, { onBudgets: () => setView('budgets'), onFindings: () => setView('findings'), onFinding: inspectFinding, onFilter: useQuery });
+}
+function renderBudgets() {
+  paintBudgets(analysis, { onDownload: profile => download(JSON.stringify(profile, null, 2), 'traceglass-profile.json', 'application/json'), onConfig: profile => busy(async () => {
+    applyResult(await request('config', { config: normalizeConfig(profile) }));
+    toast('Profile applied to both captures. Export it to reuse in CI.');
+  }) });
 }
 function spark(values, error = false) {
   const max = Math.max(...values, 1);
@@ -133,9 +152,11 @@ function shortName(entry) {
 }
 const glyphs = { document: '◇', fetch: '{ }', script: 'JS', stylesheet: '#', image: '▧', font: 'Aa', media: '▷', other: '·' };
 function filteredEntries() {
-  const term = $('#search').value.toLowerCase();
+  let matches;
+  try { matches = compileQuery($('#search').value); $('#query-error').textContent = ''; $('#search').removeAttribute('aria-invalid'); }
+  catch (error) { $('#query-error').textContent = error.message; $('#search').setAttribute('aria-invalid', 'true'); return []; }
   const type = $('#type-filter').value, status = $('#status-filter').value;
-  let rows = analysis.entries.filter(e => (!term || `${e.url} ${e.method} ${e.status}`.toLowerCase().includes(term)) &&
+  let rows = analysis.entries.filter(e => matches(e) &&
     (type === 'all' || e.type === type) && (!findingFilter || findingFilter.has(e.id)) &&
     (status === 'all' || status === 'failed' && e.failed || status === 'success' && e.status >= 200 && e.status < 300 || status === 'redirect' && e.status >= 300 && e.status < 400));
   if ($('#sort').value === 'slow') rows = rows.sort((a, b) => b.duration - a.duration);
@@ -145,7 +166,8 @@ function filteredEntries() {
 function renderRequests() {
   if (!analysis) return;
   const rows = filteredEntries();
-  const shown = rows.slice(0, limit);
+  const startIndex = Math.max(0, Math.min(limit - 100, Math.max(0, Math.ceil(rows.length / 100) - 1) * 100));
+  const shown = rows.slice(startIndex, startIndex + 100);
   const axis = Math.max(analysis.summary.duration * 1.04, 1);
   $('#time-axis').innerHTML = [0, .25, .5, .75, 1].map(n => `<span>${esc(formatDuration(n * axis))}</span>`).join('');
   $('#request-total').textContent = `${analysis.summary.count} total`;
@@ -155,8 +177,9 @@ function renderRequests() {
     const phaseBars = e.phases.filter(p => p.value > 0).map(p => `<span class="waterfall-phase phase-${p.key === 'wait' ? 'wait' : p.key === 'receive' ? 'receive' : 'network'}" style="width:${p.value / total * 100}%"></span>`).join('');
     return `<tr data-entry="${e.id}" class="${e.failed ? 'error-row' : ''}"><td><div class="request-name"><span class="type-icon ${e.type}" aria-label="${e.type}">${glyphs[e.type]}</span><div class="request-info"><button class="request-link" data-entry="${e.id}" title="${esc(e.url)}">${esc(shortName(e))}</button><div class="request-host"><span class="method-label">${esc(e.method)}</span>${esc(e.host)}</div></div></div></td><td><span class="status ${e.failed ? 'error' : e.status >= 300 ? 'redirect' : ''}">${e.status || 'ERR'}</span></td><td>${esc(formatBytes(e.transfer))}</td><td class="duration-cell${e.duration >= 600 ? ' slow' : ''}">${esc(formatDuration(e.duration))}</td><td><div class="waterfall-bar" style="margin-left:${e.offset / axis * 100}%;width:max(3px,${e.duration / axis * 100}%)" title="${esc(`${formatDuration(e.offset)} start · ${formatDuration(e.duration)} duration`)}">${phaseBars}</div></td></tr>`;
   }).join('') : '<tr><td colspan="5"><div class="empty-state"><h3>No requests match this view.</h3><p>Try a different filter or clear your search.</p><button class="button subtle" id="empty-reset">Reset filters</button></div></td></tr>';
-  $('#table-summary').textContent = `Showing ${shown.length.toLocaleString()} of ${rows.length.toLocaleString()} requests${findingFilter ? ' · Finding filter active' : ''}`;
-  $('#show-more').hidden = rows.length <= limit;
+  $('#table-summary').textContent = `Showing ${shown.length ? startIndex + 1 : 0}–${startIndex + shown.length} of ${rows.length.toLocaleString()} requests${findingFilter ? ' · Finding filter active' : ''}`;
+  $('#show-more').hidden = rows.length <= startIndex + 100;
+  $('#previous-page').hidden = startIndex === 0;
   if ($('#empty-reset')) $('#empty-reset').onclick = () => { resetFilters(); renderRequests(); };
 }
 function renderFindings() {
@@ -167,20 +190,19 @@ function renderFindings() {
   }; });
 }
 function renderComparison() {
-  if (!comparison) {
-    $('#comparison').innerHTML = `<div class="panel empty-state"><div class="empty-icon">${icon('compare')}</div><span class="eyebrow" style="justify-content:center">BEFORE. AFTER. A CLEARER PICTURE.</span><h3>Did that change actually make it faster?</h3><p>Add an earlier HAR as your baseline. Compare endpoint medians,<br>spot regressions and see what changed between captures.</p><button class="button primary" id="compare-upload">${icon('upload')}Add baseline HAR</button>${sample ? '<button class="button subtle" id="demo-baseline">Try demo comparison ↗</button>' : ''}<p class="privacy-note">The open capture is “after”. Your baseline is “before”.</p></div>`;
-    $('#compare-upload').onclick = () => $('#baseline-input').click();
-    if ($('#demo-baseline')) $('#demo-baseline').onclick = () => loadDemo(true);
-    return;
-  }
-  const changed = comparison.endpoints.filter(e => e.state !== 'stable');
-  $('#comparison').innerHTML = `<div class="compare-bar"><p><strong>${esc(comparison.baseline)}</strong> → <strong>${esc(comparison.current)}</strong><br>Endpoint medians · Query values ignored · Regressions ≥ 100 ms and 20%</p><button class="button subtle small" id="clear-baseline">${icon('close')}Remove baseline</button></div><div class="compare-stats">${[['Regressions', comparison.regressions], ['Improvements', comparison.improved], ['New endpoints', comparison.added], ['Removed endpoints', comparison.removed]].map(([label, value]) => `<div class="compare-stat"><strong>${value}</strong><span>${label}</span></div>`).join('')}</div><div class="panel"><div class="panel-heading"><div><h2>What changed <span>${changed.length}</span></h2><p>${comparison.endpoints.length} endpoints across both captures</p></div></div><div class="table-scroll"><table class="comparison-table"><thead><tr><th>ENDPOINT</th><th>BASELINE</th><th>CURRENT</th><th>CHANGE</th></tr></thead><tbody>${changed.length ? changed.slice(0, 200).map(e => `<tr><td>${esc(e.key)}<div class="request-host">${e.beforeCount} → ${e.afterCount} requests</div></td><td>${e.beforeCount ? esc(formatDuration(e.previous)) : '—'}</td><td>${e.afterCount ? esc(formatDuration(e.current)) : '—'}</td><td><span class="state-pill ${e.state}">${e.state === 'regression' || e.state === 'improved' ? `${e.delta > 0 ? '+' : ''}${Math.round(e.delta)} ms · ` : ''}${e.state}</span></td></tr>`).join('') : '<tr><td colspan="4">No endpoint crossed the change thresholds.</td></tr>'}</tbody></table></div><p class="comparison-note">${changed.length > 200 ? 'Showing the first 200 changed endpoints. ' : ''}Matched by method, origin, path and query names. Repeated endpoints use median duration. Compare like-for-like recordings: cache state, network conditions and workload can affect results.</p></div>`;
-  $('#clear-baseline').onclick = () => busy(async () => { applyResult(await request('clear-baseline')); toast('Baseline removed.'); });
+  renderCompare(comparison, baselineMeta, {
+    icon, sample, onUpload: () => $('#baseline-input').click(), onPaste: () => openPaste('baseline'),
+    onDemo: () => loadDemo(true), onInspect: showDetail,
+    onClear: () => busy(async () => { applyResult(await request('clear-baseline')); toast('Baseline removed.'); }),
+    onScope: pageId => busy(async () => { applyResult(await request('scope', { pageId, baseline: true })); }),
+  });
 }
 const headings = {
+  overview: ['Overview', 'Your network, at a glance.', 'One capture. A clearer picture of what matters.'],
   waterfall: ['Waterfall', 'See the whole request.', 'Find the bottlenecks. Connect the dots. Ship a faster experience.'],
   findings: ['Findings', 'Less noise. More signal.', 'Turn a wall of network requests into a focused investigation.'],
   compare: ['Compare captures', 'Make every change count.', 'A closer look at what got faster, slower, or simply different.'],
+  budgets: ['Budgets & rules', 'Make fast your default.', 'Set a performance budget. Catch regressions before they become habits.'],
 };
 function setView(view) {
   if (!headings[view]) return;
@@ -202,7 +224,7 @@ function showDetail(id) {
 function download(text, name, type) {
   const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function downloadName(extension) { return (analysis?.name || 'capture').replace(/\.(har|json)$/i, '').replace(/[^\p{L}\p{N}_.-]/gu, '_').slice(0, 80) + extension; }
@@ -212,8 +234,9 @@ async function exportFile(type) {
   if (!analysis) return;
   await busy(async () => {
     const result = await request(type);
-    download(result.text, downloadName(type === 'report' ? '.report.md' : '.sanitized.har'), type === 'report' ? 'text/markdown' : 'application/json');
-    toast(type === 'report' ? 'Report exported. Review URL paths before sharing.' : `Sanitized HAR exported. ${result.stats.redactedHeaders} header values redacted. Review paths before sharing.`);
+    const formats = { report: ['.report.md', 'text/markdown'], html: ['.report.html', 'text/html'], csv: ['.requests.csv', 'text/csv;charset=utf-8'], sanitize: ['.sanitized.har', 'application/json'] };
+    download(result.text, downloadName(formats[type][0]), formats[type][1]);
+    toast(type === 'sanitize' ? `Sanitized HAR exported. ${result.stats.redactedHeaders} header values redacted. Review paths before sharing.` : 'Report exported for the selected page. Review URL paths before sharing.');
   });
 }
 
@@ -227,6 +250,7 @@ $('#search').oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeo
 ['#type-filter', '#status-filter', '#sort'].forEach(selector => { $(selector).onchange = () => { limit = 100; renderRequests(); }; });
 $('#reset-filters').onclick = () => { resetFilters(); renderRequests(); };
 $('#show-more').onclick = () => { limit += 100; renderRequests(); };
+$('#previous-page').onclick = () => { limit = Math.max(100, limit - 100); renderRequests(); };
 $('#request-rows').onclick = event => { const row = event.target.closest('[data-entry]'); if (row) showDetail(row.dataset.entry); };
 $('#guide-button').onclick = $('#help-button').onclick = () => $('#help-dialog').showModal();
 $('.close-help').onclick = () => $('#help-dialog').close();
@@ -237,13 +261,49 @@ $('.close-help').onclick = () => $('#help-dialog').close();
 $('#export-button').onclick = () => { const open = $('#export-menu').hidden; $('#export-menu').hidden = !open; $('#export-button').setAttribute('aria-expanded', String(open)); };
 $('#export-report').onclick = () => exportFile('report');
 $('#export-har').onclick = () => exportFile('sanitize');
+$('#export-html').onclick = () => exportFile('html');
+$('#export-csv').onclick = () => exportFile('csv');
+$('#page-filter').onchange = event => {
+  const pageId = event.target.value === '*' ? null : JSON.parse(event.target.value);
+  busy(async () => { resetFilters(); applyResult(await request('scope', { pageId })); });
+};
+$$('[data-query]').forEach(button => { button.onclick = () => useQuery(button.dataset.query); });
+$('#search').setAttribute('aria-describedby', 'search-help');
+$('#search').placeholder = 'Search requests · status:5xx time:>1s';
+function openPaste(target = 'load') {
+  $('#paste-target').value = target;
+  $('#paste-error').hidden = true;
+  $('#paste-dialog').showModal();
+  $('#paste-text').focus();
+}
+$('#paste-button').onclick = () => openPaste();
+$('#close-paste').onclick = () => $('#paste-dialog').close();
+$('#paste-dialog').onclose = () => { $('#paste-text').value = ''; $('#paste-error').hidden = true; };
+$('#paste-form').onsubmit = async event => {
+  event.preventDefault();
+  if (loading) return;
+  const target = $('#paste-target').value, text = $('#paste-text').value;
+  const button = $('#paste-form button[type="submit"]');
+  loading = true; button.disabled = true; button.textContent = 'Analyzing…';
+  $('#paste-error').hidden = true;
+  try {
+    if (new TextEncoder().encode(text).byteLength > MAX_BYTES) throw new Error('JSON exceeds the 50 MiB limit.');
+    const result = target === 'config' ? await request('config', { config: normalizeConfig(JSON.parse(text)) }) : await request(target, { text, name: $('#paste-name').value.trim() || 'pasted.har' });
+    if (target === 'load') { sample = false; resetFilters(); }
+    applyResult(result);
+    $('#paste-dialog').close();
+    setView(target === 'config' ? 'budgets' : target === 'baseline' ? 'compare' : 'overview');
+    toast(target === 'config' ? 'Analysis profile imported.' : `${analysis.summary.count} requests in the current capture. JSON processed locally.`);
+  } catch (error) { $('#paste-error').textContent = error.message; $('#paste-error').hidden = false; }
+  finally { loading = false; button.disabled = false; button.textContent = 'Analyze JSON →'; }
+};
 document.addEventListener('click', event => { if (!event.target.closest('.export-wrap')) { $('#export-menu').hidden = true; $('#export-button').setAttribute('aria-expanded', 'false'); } });
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') { $('#export-menu').hidden = true; $('#export-button').setAttribute('aria-expanded', 'false'); return; }
   if (event.ctrlKey || event.metaKey) { if (event.key.toLowerCase() === 'o') { event.preventDefault(); if (!loading) $('#file-input').click(); } return; }
   if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName) || $('dialog[open]') || loading) return;
   if (event.key === '/') { event.preventDefault(); setView('waterfall'); $('#search').focus(); }
-  if (['1', '2', '3'].includes(event.key)) setView(['waterfall', 'findings', 'compare'][Number(event.key) - 1]);
+  if (['1', '2', '3', '4', '5'].includes(event.key)) setView(['overview', 'waterfall', 'findings', 'compare', 'budgets'][Number(event.key) - 1]);
 });
 let dragDepth = 0;
 document.addEventListener('dragenter', event => { if (event.dataTransfer?.types.includes('Files')) { event.preventDefault(); dragDepth++; $('#drop-overlay').hidden = false; } });

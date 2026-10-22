@@ -8,7 +8,7 @@
 
 **A local network workbench that turns HAR files into a story you can actually follow.**
 
-Waterfall viewer · Before/after comparison · Sanitized exports · CI performance budgets
+Network overview · Advanced search · Before/after comparison · Portable reports · CI budgets
 
 [![CI](https://github.com/fkalsasx/traceglass/actions/workflows/ci.yml/badge.svg)](https://github.com/fkalsasx/traceglass/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-5f8050)](LICENSE)
@@ -39,6 +39,18 @@ Open **http://127.0.0.1:4273**. The synthetic checkout demo loads immediately. D
 
 No `npm install` step. The browser app and CLI use only platform APIs.
 
+## New in 2.0
+
+- **An overview that connects the dots.** See concurrent network activity, idle gaps, domain transfer, resource types and timing phases. Click a domain or resource type to investigate its requests.
+- **A profile you can take to CI.** Tune finding thresholds and performance budgets in the browser, then export the same JSON for `--config`. Limits can be disabled individually. Unknown transfer sizes never receive a false passing result.
+- **Multi-page captures.** Scope each recording independently by HAR page reference. Metrics, findings, budgets and exports follow the selected page.
+- **Search as precisely as you think.** Combine `status:5xx time:>1s -domain:analytics`, quote phrases, or filter images by `type:image size:>100kb`. No regular expression execution.
+- **Comparisons beyond speed.** Search/filter endpoint changes, identify newly failing endpoints, inspect their requests, and compare known transferred bytes.
+- **Reports that travel.** Export a passive, self-contained HTML investigation with charts and print styles, a Markdown report, CSV request data or a sanitized HAR. Paste JSON directly to import captures, baselines and profiles.
+- **Bounded rendering.** The waterfall displays 100 rows per page while filters search the entire selected recording.
+
+![Before/after comparison with new failing endpoints](docs/comparison.jpg)
+
 ## A useful first minute
 
 1. **Follow the waterfall.** Filter by URL, method, resource type or status. Sort by start time, duration or transfer size. Select a request to inspect its timing phases.
@@ -51,7 +63,9 @@ No `npm install` step. The browser app and CLI use only platform APIs.
 | Waterfall, filters and timing details | ✓ | Structured timing data |
 | Actionable, deterministic findings | ✓ | ✓ |
 | Endpoint median comparison | ✓ | ✓ |
-| Sanitized HAR / Markdown report | ✓ | ✓ |
+| Sanitized HAR / Markdown / standalone HTML / CSV | ✓ | ✓ |
+| Domain/type breakdown and concurrency | Interactive | Structured data |
+| Page selection and reusable budget profiles | ✓ | ✓ |
 | JSON output and CI exit codes | — | ✓ |
 | Accounts, uploads, runtime dependencies | 0 | 0 |
 
@@ -75,11 +89,39 @@ node bin/traceglass.mjs analyze current.har --baseline baseline.har \
 
 # Machine-readable analysis, with query values hidden
 node bin/traceglass.mjs analyze examples/checkout.har --format json
+
+# A standalone investigation report you can open or print to PDF
+node bin/traceglass.mjs analyze examples/checkout.har --format html --output report.html
+
+# Search before computing metrics
+node bin/traceglass.mjs analyze examples/checkout.har --query 'status:5xx time:>1s'
+
+# Enforce the same profile exported by the browser
+node bin/traceglass.mjs analyze current.har --config traceglass-profile.json
 ```
 
 In PowerShell, put each command on one line (the `\` continuation above is for POSIX shells).
 
-Exit codes: **0** success, **1** invalid input or IO error, **2** a requested CI gate failed. Run `node bin/traceglass.mjs --help` for all flags. To get a `traceglass` command locally, run `npm link`; this repository is not advertised as a published npm package.
+Exit codes: **0** success, **1** invalid input or IO error, **2** a requested CI gate failed. Passing `--config` explicitly enforces every enabled budget; an unknown result also exits 2. Without `--config`, default budgets are informational. Run `node bin/traceglass.mjs --help` for all flags. To get a `traceglass` command locally, run `npm link`; this repository is not advertised as a published npm package.
+
+Use `--page <pageref>` and `--baseline-page <pageref>` to choose independent page scopes. `--query` filters only the current capture before metrics are computed; choose comparable baseline data. In the browser, the search box filters the request table; exports include the selected page, regardless of table search.
+
+### Reusable profiles
+
+Start with [examples/profile.json](examples/profile.json), or export a profile from **Budgets & rules**. Import it through **Paste JSON → Analysis profile**. Profiles and captures remain in memory; reloading resets them.
+
+```json
+{
+  "slowWaitMs": 600,
+  "slowWaitRatio": 0.6,
+  "largeTransferBytes": 500000,
+  "regressionMs": 100,
+  "regressionPercent": 20,
+  "budgets": { "p95Ms": 1500, "transferBytes": 2000000, "requests": 100, "failed": 0 }
+}
+```
+
+Set an individual budget to `null` to disable it. Budget keys omitted from a partial profile inherit the defaults. Unknown keys and invalid numbers are rejected.
 
 The demo prints:
 
@@ -124,7 +166,7 @@ Read the [exact export policy](docs/PRIVACY.md). Only synthetic captures are inc
 - **Capture span:** latest request finish minus earliest request start. Parallel request durations are not summed. This is not a browser page-load metric.
 - **Transfer:** `_transferSize` where available, otherwise nonnegative `bodySize` plus known `headersSize`. Unknown values are excluded and reported. Decoded content size is separate. Units are decimal kB/MB.
 - **p95:** nearest-rank 95th percentile of request duration. This is a property of this recording, not a statistical service SLO.
-- **Comparison:** match method + origin + path + sorted query names, ignoring values. Repeated matches use medians. A regression requires **both ≥100 ms and ≥20%**. A zero baseline requires the absolute threshold.
+- **Comparison:** match method + origin + path + sorted query names, ignoring values. Repeated matches use medians. By default a regression requires **both ≥100 ms and ≥20%**; both thresholds are configurable. A zero baseline requires the absolute threshold.
 - **Timing:** TLS/SSL is already part of HAR’s connection phase. It is never counted twice. Missing/negative phases contribute zero to visualization; recorded phases are normalized to the reported total duration.
 
 The parser follows [HAR 1.2 timing semantics](https://www.softwareishard.com/blog/har-12-spec/#timings). See [methodology and limits](docs/METHODOLOGY.md) for the heuristics and supported scope.
@@ -139,7 +181,7 @@ npm run build   # Static app in dist/
 
 Serve `dist/` with any static host. Relative asset URLs support subpaths such as GitHub Pages project sites. Opening `index.html` directly with `file://` is not supported; module workers require an HTTP(S) origin.
 
-For GitHub Pages, select **Settings → Pages → Source → GitHub Actions**, then run the **Deploy demo** workflow. It builds and deploys the exact same browser app. No application backend is provisioned.
+For GitHub Pages, select **Settings → Pages → Source → GitHub Actions**. Browser/engine changes pushed to `main` deploy automatically; you can also run **Deploy demo** manually. The workflow tests, builds and deploys the exact same browser app. No application backend is provisioned.
 
 ```text
 lib/         Shared pure-JavaScript engine
@@ -154,6 +196,6 @@ test/        Node.js built-in test runner
 
 Small, useful improvements are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Please use synthetic or thoroughly reviewed captures in issues. Report security concerns through the process in [SECURITY.md](SECURITY.md).
 
-Possible next steps: page-level selection, configurable thresholds, and an opt-in exact-query matching mode. These are ideas, not shipped features.
+Possible next steps: controlled capture automation and an opt-in exact-query matching mode. These are ideas, not shipped features. Read the [2.0 release notes](CHANGELOG.md).
 
 If Traceglass made an investigation easier, a star helps other developers find it. Released under the [MIT license](LICENSE).

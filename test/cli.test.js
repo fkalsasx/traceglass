@@ -41,3 +41,20 @@ test('CLI writes sanitized HAR, protects existing output and never overwrites so
     assert.equal(await readFile(source, 'utf8'), snapshot);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+test('CLI exports HTML/CSV, scopes queries and enforces explicit configuration budgets', async () => {
+  assert.ok(cli('analyze', 'examples/checkout.har', '--format', 'html').stdout.startsWith('<!doctype html>'));
+  assert.ok(cli('analyze', 'examples/checkout.har', '--format', 'csv').stdout.includes('transfer_bytes'));
+  const filtered = cli('analyze', 'examples/checkout.har', '--query', 'status:5xx', '--format', 'json');
+  assert.equal(JSON.parse(filtered.stdout).summary.count, 1);
+  const dir = await mkdtemp(path.join(tmpdir(), 'traceglass-config-'));
+  try {
+    const config = path.join(dir, 'budget.json');
+    await writeFile(config, JSON.stringify({ budgets: { requests: 1 } }));
+    assert.equal(cli('analyze', 'examples/checkout.har', '--config', config).status, 2);
+    await writeFile(config, JSON.stringify({ budgets: { requests: null, p95Ms: null, transferBytes: null, failed: null } }));
+    assert.equal(cli('analyze', 'examples/checkout.har', '--config', config).status, 0);
+    assert.equal(cli('analyze', 'examples/checkout.har', '--baseline-page', 'a').status, 1);
+    assert.equal(cli('analyze', 'examples/checkout.har', '--page', 'missing').status, 1);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});

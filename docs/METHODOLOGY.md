@@ -4,7 +4,7 @@
 
 Traceglass accepts a JSON HAR object with `log.entries`. It tolerates missing optional fields; this is not a full HAR schema validator. Invalid JSON, empty captures, captures over 50 MiB and more than 50,000 entries are rejected. Browser file size is checked before reading. Entries missing request/response, a valid timestamp or an HTTP(S)/WS(S) URL are skipped with a warning. An entirely unreadable capture is rejected.
 
-HAR 1.2 is the target. Only HTTP metadata is interpreted; a WebSocket handshake may appear as a request but WebSocket frames are not analyzed. Multiple HAR pages are combined in one timeline. Bodies are not decoded, executed or rendered.
+HAR 1.2 is the target. Only HTTP metadata is interpreted; a WebSocket handshake may appear as a request but WebSocket frames are not analyzed. Multiple HAR pages are combined by default. A page selector can scope each capture independently by `pageref`; requests with no reference form an Unassigned group. Scope changes reset the time origin and recompute all aggregates. Bodies are not decoded, executed or rendered.
 
 ## Timing
 
@@ -19,6 +19,8 @@ p95 uses the nearest-rank definition. Median averages the two center values for 
 Transfer uses response `_transferSize` when nonnegative, including zero for cached requests. Otherwise it uses nonnegative response `bodySize` plus known nonnegative `headersSize`. If the body size is unknown, the whole transfer size is unknown. Totals sum known values only and warn when incomplete. Decoded `content.size` is displayed separately and is not substituted for network transfer. Units are decimal, not binary.
 
 ## Findings
+
+The following are defaults. They can be changed through an analysis profile in the browser or CLI. Failure status and missing Cache-Control rules are fixed.
 
 | Finding | Threshold | What it does not prove |
 | --- | --- | --- |
@@ -35,7 +37,21 @@ Keys contain method, URL origin, pathname and unique sorted query names. Query v
 
 Repeated endpoints are aggregated using the median duration of each capture. At least 100 ms **and** 20% slower is a regression. At least 100 ms **and** 20% faster is an improvement. With a zero-duration baseline, a current median of at least 100 ms is a regression. Added/removed endpoints are separate categories.
 
-The UI shows the first 200 changed endpoints, the Markdown report the first 30, and CLI JSON all endpoints. The request table initially renders 100 rows and can show more. Search/filter covers all parsed requests, not just displayed rows.
+The comparison table initially shows 100 endpoints with search, state filters and progressive expansion. Markdown includes up to 30 changed or newly failing endpoints; HTML includes 50; CLI JSON includes all. An endpoint is newly failing when it existed in the baseline with zero failures and has at least one failure in the current capture. This is independent of duration classification.
+
+The waterfall renders 100 rows per page with next/previous controls. Search/filter covers all parsed requests in the current page scope, not just visible rows. Comparisons, summary metrics and browser exports are independent of table search. CLI `--query` filters the current capture before analysis; it does not filter the baseline.
+
+## Overview and budgets
+
+Peak concurrency uses half-open intervals: a request ending at a timestamp does not overlap a request starting at that timestamp. Zero-duration requests contribute no active time. Network-active time is the union of all request intervals; idle time is the remaining capture span. The chart uses 100 equal time bins and shows the peak within each bin. Summed phase time includes overlapping work and is not capture elapsed time.
+
+Domain and resource summaries sum known transfer bytes, count failures and compute median duration within each group. Unknown sizes are reported and excluded. A zero-byte capture still has meaningful request counts even when its transfer bars have no width.
+
+Default budgets: p95 ≤1500 ms, known transfer ≤2,000,000 bytes, ≤100 requests and ≤0 failed requests. Values exactly at their limits pass. A transfer result below its limit with missing sizes is unknown; a known overage fails even with missing sizes. Disable a budget with `null`. Partial profiles inherit unspecified defaults. The browser keeps profiles in memory; exported JSON can be reused with CLI `--config`, which enforces every enabled budget and exits 2 for either failed or unknown results.
+
+## Search syntax
+
+Whitespace-separated terms are combined with AND. Double quotes group phrases. A leading `-` negates a term. Fields: `domain`, `method`, `type`, `status`, `time`, `size`, `is`. Text fields use case-insensitive substring matching; `is:failed` and `is:success` use status semantics. Status supports `5xx` and numeric comparisons. Time units are `ms` or `s`; size units are `b`, `kb`, `mb` (decimal). Operators: `>`, `>=`, `<`, `<=`, `=`. Unknown sizes never match a numeric size predicate. Invalid field values produce an error instead of silently dropping the filter. Plain URLs remain literal text terms.
 
 ## Deliberate limits
 

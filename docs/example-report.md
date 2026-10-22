@@ -12,8 +12,25 @@ Capture: checkout\.har
 
 - **2 failed requests** — Inspect HTTP errors and requests with status 0\. A status of 0 may indicate a cancelled, blocked or failed request\.
 - **3 long server waits** — At least 600 ms and 60% of the request spent waiting for the first byte\. Check backend traces, cache misses and network latency\.
-- **2 large transfers** — At least 500 kB transferred per request\. Check compression, code splitting and image dimensions\.
+- **2 large transfers** — At least 500\.0 kB transferred per request\. Check compression, code splitting and image dimensions\.
 - **4 static assets without Cache\-Control** — No Cache\-Control response header was captured\. Verify caching policy; HAR metadata alone cannot determine browser cache behavior\.
+
+## Performance budgets
+
+| Budget | Actual | Limit | Result |
+| --- | --- | --- | --- |
+| p95 request duration | 2.14 s | 1.50 s | fail |
+| Known transfer | 1.65 MB | 2.00 MB | pass |
+| Request count | 19 | 100 | pass |
+| Failed requests | 2 | 0 | fail |
+
+## Domain breakdown
+
+| Domain | Requests | Known transfer | Failed |
+| --- | --- | --- | --- |
+| cdn\.example\.com | 4 | 987.6 kB | 0 |
+| store\.example\.com | 13 | 665.6 kB | 2 |
+| analytics\.example\.com | 2 | 780 B | 0 |
 
 ## Slowest requests
 
@@ -36,10 +53,11 @@ Baseline: checkout\-before\.har
 
 3 regressions · 0 improvements · 0 added · 0 removed endpoints.
 
-Matched by method, origin, path and query names. Repeated endpoints use median duration. Regression threshold: at least 100 ms and 20%. Captures may differ in network, cache and workload.
+Matched by method, origin, path and query names. Repeated endpoints use median duration. Regression threshold: at least 100 ms and 20%. 2 previously successful endpoints now have failures. Captures may differ in network, cache and workload.
 
-| Endpoint | Baseline median | Current median | State |
-| --- | --- | --- | --- |
-| GET https://store\.example\.com/api/recommendations | 480 ms | 2.14 s | regression |
-| GET https://store\.example\.com/api/cart | 340 ms | 1.49 s | regression |
-| GET https://store\.example\.com/api/shipping?country | 280 ms | 972 ms | regression |
+| Endpoint | Baseline median | Current median | State | Failures before → after |
+| --- | --- | --- | --- | --- |
+| GET https://store\.example\.com/api/recommendations | 480 ms | 2.14 s | regression · new failure | 0 → 1 |
+| GET https://store\.example\.com/api/cart | 340 ms | 1.49 s | regression | 0 → 0 |
+| GET https://store\.example\.com/api/shipping?country | 280 ms | 972 ms | regression | 0 → 0 |
+| POST https://store\.example\.com/api/discount | 148 ms | 148 ms | stable · new failure | 0 → 1 |

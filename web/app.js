@@ -1,5 +1,6 @@
 import { formatBytes, formatDuration, MAX_BYTES, compileQuery, normalizeConfig } from '../lib/index.js';
 import { renderOverview as paintOverview, renderBudgets as paintBudgets, renderCompare, pageOptions } from './panels.js';
+import { createAssistant } from './assistant-ui.js';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -49,6 +50,9 @@ function request(type, values = {}) {
     worker.postMessage({ id, type, ...values });
   });
 }
+const assistant = createAssistant({ request, onInspect: showDetail, onView: setView, isLoading: () => loading, onFilter: status => {
+  resetFilters(); $('#status-filter').value = status; renderRequests(); setView('waterfall');
+} });
 function toast(message, error = false) {
   clearTimeout(toastTimer);
   $('#toast').textContent = message;
@@ -105,6 +109,7 @@ function applyResult(result) {
   $('#warnings').innerHTML = analysis.warnings.map(w => `<p>${esc(w)}</p>`).join('');
   $('#page-filter').innerHTML = pageOptions(analysis.pages, analysis.pageId);
   renderStats(); renderInsight(); renderRequests(); renderFindings(); renderComparison(); renderOverview(); renderBudgets();
+  assistant.update(analysis);
 }
 function useQuery(query) {
   resetFilters(); $('#search').value = query; renderRequests(); setView('waterfall');
@@ -203,10 +208,12 @@ const headings = {
   findings: ['Findings', 'Less noise. More signal.', 'Turn a wall of network requests into a focused investigation.'],
   compare: ['Compare captures', 'Make every change count.', 'A closer look at what got faster, slower, or simply different.'],
   budgets: ['Budgets & rules', 'Make fast your default.', 'Set a performance budget. Catch regressions before they become habits.'],
+  assistant: ['Yerel asistan', 'Sor. Anla. Bir sonraki adımı bul.', 'Ağ kaydındaki ölçümlerden, Türkçe ve uygulanabilir açıklamalara.'],
 };
 function setView(view) {
   if (!headings[view]) return;
   currentView = view;
+  document.body.dataset.view = view;
   $$('[data-view]').forEach(b => { b.classList.toggle('active', b.dataset.view === view); b.setAttribute('aria-current', b.dataset.view === view ? 'page' : 'false'); });
   $$('.view').forEach(el => { el.hidden = el.id !== `${view}-view`; });
   $('#breadcrumb-view').textContent = headings[view][0];
@@ -303,7 +310,7 @@ document.addEventListener('keydown', event => {
   if (event.ctrlKey || event.metaKey) { if (event.key.toLowerCase() === 'o') { event.preventDefault(); if (!loading) $('#file-input').click(); } return; }
   if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName) || $('dialog[open]') || loading) return;
   if (event.key === '/') { event.preventDefault(); setView('waterfall'); $('#search').focus(); }
-  if (['1', '2', '3', '4', '5'].includes(event.key)) setView(['overview', 'waterfall', 'findings', 'compare', 'budgets'][Number(event.key) - 1]);
+  if (['1', '2', '3', '4', '5', '6'].includes(event.key)) setView(['overview', 'waterfall', 'findings', 'compare', 'budgets', 'assistant'][Number(event.key) - 1]);
 });
 let dragDepth = 0;
 document.addEventListener('dragenter', event => { if (event.dataTransfer?.types.includes('Files')) { event.preventDefault(); dragDepth++; $('#drop-overlay').hidden = false; } });
@@ -312,4 +319,5 @@ document.addEventListener('dragleave', event => { if (--dragDepth <= 0) { dragDe
 document.addEventListener('drop', event => { event.preventDefault(); dragDepth = 0; $('#drop-overlay').hidden = true; if (event.dataTransfer?.files.length > 1) toast('Open one capture at a time. Use Add baseline for a comparison.', true); else loadFile(event.dataTransfer?.files[0]); });
 
 setView(currentView);
-loadDemo();
+const initialView = new URL(location.href).searchParams.get('view');
+loadDemo().then(() => { if (Object.hasOwn(headings, initialView)) setView(initialView); });

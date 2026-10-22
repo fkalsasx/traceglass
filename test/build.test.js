@@ -11,6 +11,13 @@ test('built module imports stay inside a GitHub Pages project subpath and resolv
   assert.equal(result.status, 0, result.stderr);
   const prefix = 'https://example.test/project/';
   const dist = path.join(root, 'dist');
+  const html = await readFile(path.join(dist, 'index.html'), 'utf8');
+  for (const name of ['theme.js', 'experience.css']) {
+    assert.ok(html.includes(`./${name}?v=`));
+    await access(path.join(dist, name));
+  }
+  await access(path.join(dist, 'manrope-variable.ttf'));
+  await access(path.join(dist, 'manrope-OFL.txt'));
   for (const file of await readdir(dist, { recursive: true })) {
     if (!file.endsWith('.js')) continue;
     const content = await readFile(path.join(dist, file), 'utf8');

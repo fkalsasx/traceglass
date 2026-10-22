@@ -1,1 +1,8 @@
-/* Use the operating system’s UI font. No font requests, CDNs or tracking. */
+/* Manrope by Mikhail Sharanda. Bundled under SIL OFL 1.1; see manrope-OFL.txt. */
+@font-face {
+  font-family: Manrope;
+  src: url('./manrope-variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+}

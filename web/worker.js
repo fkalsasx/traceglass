@@ -1,5 +1,6 @@
 import { analyzeHar, parseHar, compareHar, sanitizeHar, createReport, createHtmlReport, createCsv, normalizeConfig } from '../lib/index.js';
 import { createDemo } from './demo.js';
+import { answerQuestion } from '../lib/assistant.js';
 
 let document = null, baselineDocument = null, analysis = null, baseline = null;
 let config = normalizeConfig(), pageId = null, baselinePageId = null;
@@ -27,6 +28,10 @@ self.onmessage = ({ data: message }) => {
     }
     if (type === 'clear-baseline') { baselineDocument = null; baseline = null; baselinePageId = null; }
     const comparison = baseline && analysis ? compareHar(baseline, analysis, { config }) : null;
+    if (type === 'assistant') {
+      self.postMessage({ id, result: answerQuestion({ question: message.question, context: message.context, analysis, comparison }) });
+      return;
+    }
     if (['sanitize', 'report', 'html', 'csv'].includes(type)) {
       if (!analysis) throw new Error('Open a capture first.');
       if (type === 'sanitize') {

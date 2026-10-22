@@ -8,7 +8,7 @@
 
 **A local network workbench that turns HAR files into a story you can actually follow.**
 
-Network overview · Advanced search · Before/after comparison · Portable reports · CI budgets
+Local interpreter · Three themes · Network overview · Advanced search · Before/after comparison · Portable reports · CI budgets
 
 [![CI](https://github.com/fkalsasx/traceglass/actions/workflows/ci.yml/badge.svg)](https://github.com/fkalsasx/traceglass/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-5f8050)](LICENSE)
@@ -39,7 +39,17 @@ Open **http://127.0.0.1:4273**. The synthetic checkout demo loads immediately. D
 
 No `npm install` step. The browser app and CLI use only platform APIs.
 
-## New in 2.0
+## New in 2.1
+
+- **A free local interpreter.** Open **Yerel asistan** and ask in Turkish: “Neden yavaş?”, “503 ne demek?” or “Önce neyi düzeltmeliyim?”. Explanations include scoped measurements, clickable request evidence, investigation steps and follow-up suggestions. This is a deterministic rule-based interpreter, **not a language model**; no API key, model download or paid service is needed.
+- **Paper, Forest and Midnight.** Switch between a warm light theme, deep green and midnight blue, or follow the system preference. Only your selected theme is stored; captures and chats stay in memory.
+- **A calmer, sharper workspace.** Bundled Manrope variable typography, staggered card entrances, chart reveals, dialog transitions and responsive chat. Reduced-motion preferences disable animations and transitions.
+
+![The free local interpreter in the Forest theme](docs/assistant.jpg)
+
+The interpreter covers priorities, slow waits/TTFB, HTTP errors, transfer sizes, cache metadata, budgets, privacy and baseline comparisons. It does not generate arbitrary code or general chat. Changing the capture, page, baseline or profile clears its conversation to prevent stale evidence. At most 12 turns remain in memory.
+
+## Workbench features
 
 - **An overview that connects the dots.** See concurrent network activity, idle gaps, domain transfer, resource types and timing phases. Click a domain or resource type to investigate its requests.
 - **A profile you can take to CI.** Tune finding thresholds and performance budgets in the browser, then export the same JSON for `--config`. Limits can be disabled individually. Unknown transfer sizes never receive a false passing result.
@@ -154,7 +164,7 @@ const { har, stats } = sanitizeHar(capture);
 ## What stays private
 
 - The browser reads files into a **module worker**. It never posts their contents to a server. The local server serves application assets and rejects POST requests.
-- Captures remain **in memory**. There is no local storage, IndexedDB, telemetry or third-party font request. Reloading clears them. Browser/OS memory management is outside the application’s control.
+- Captures remain **in memory**. Captures and chats never enter localStorage or IndexedDB. Only the theme name is stored. There is no telemetry or third-party font request. Reloading clears captures and chats. Browser/OS memory management is outside the application’s control.
 - The view model hides query values, URL credentials and fragments. It excludes bodies, cookies and raw request/response headers. The timing panel shows only selected response metadata.
 - Sanitized HAR exports rebuild a small set of known HAR fields. Cookies, bodies, comments, page metadata, IP addresses and unknown extensions are dropped. Query values are replaced; non-allowlisted header values become `[REDACTED]`.
 - **URL paths, domains, query names, header names, timestamps and allowlisted metadata remain.** These can still identify people or contain secrets. Sanitization is a conservative convenience, not a security guarantee. Inspect exports before sharing.
@@ -196,6 +206,10 @@ test/        Node.js built-in test runner
 
 Small, useful improvements are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Please use synthetic or thoroughly reviewed captures in issues. Report security concerns through the process in [SECURITY.md](SECURITY.md).
 
-Possible next steps: controlled capture automation and an opt-in exact-query matching mode. These are ideas, not shipped features. Read the [2.0 release notes](CHANGELOG.md).
+Possible next steps: controlled capture automation and an opt-in exact-query matching mode. These are ideas, not shipped features. Read the [release notes](CHANGELOG.md).
 
 If Traceglass made an investigation easier, a star helps other developers find it. Released under the [MIT license](LICENSE).
+
+## Typography license
+
+The bundled [Manrope](https://github.com/googlefonts/manrope) font is licensed under [SIL OFL 1.1](web/manrope-OFL.txt). Application code remains MIT.

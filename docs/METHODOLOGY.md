@@ -55,4 +55,4 @@ Whitespace-separated terms are combined with AND. Double quotes group phrases. A
 
 ## Deliberate limits
 
-No remote URL import, request replay, packet capture, AI diagnosis, body rendering, historical storage or automated capture is implemented. No service worker caches the app for a future offline visit. The app makes no claim to replace DevTools, a security scanner or a controlled benchmark suite.
+The local interpreter matches supported Turkish/English network terms to deterministic explanation templates, then inserts scoped measurements and valid request references. It separates observations from investigation suggestions and cannot establish a backend root cause or critical rendering path. It is not a trained AI model. No remote URL import, request replay, packet capture, model-based diagnosis, body rendering, historical capture storage or automated capture is implemented. No service worker caches the app for a future offline visit. The app makes no claim to replace DevTools, a security scanner or a controlled benchmark suite.

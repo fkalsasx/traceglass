@@ -59,7 +59,7 @@ try {
     port: { type: 'string', default: '4273' }, 'fail-on-errors': { type: 'boolean' }, 'fail-on-regression': { type: 'boolean' }, 'max-p95': { type: 'string' },
   } });
   const [command, file, ...extra] = positionals;
-  if (values.version) console.log('2.0.0');
+  if (values.version) console.log('2.1.0');
   else if (values.help || !command) console.log(HELP);
   else if (command === 'view') {
     if (file) throw new Error('view takes no file arguments. Open a HAR in the browser.');

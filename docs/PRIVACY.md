@@ -6,7 +6,15 @@ Traceglass is a local analysis tool, not a complete data loss prevention system.
 
 Analysis does not make network requests. The browser fetches its own application assets from its origin. The Node CLI uses local file IO. Neither loads remote resources from request URLs found in a HAR.
 
-The browser worker retains the current and baseline raw HAR documents in memory so it can reanalyze page scopes and profiles. The main thread receives a reduced view model. No browser storage APIs or analytics are used. Removing the baseline releases its document reference. File names and page reference IDs appear in the interface and reports. Reloading clears both captures and the analysis profile.
+The browser worker retains the current and baseline raw HAR documents in memory so it can reanalyze page scopes and profiles. The main thread receives a reduced view model. No analytics are used. Only the selected theme name is saved in localStorage (`traceglass.theme`); storage failures fall back to an in-memory theme preference. Captures, questions and answers are never written to browser storage. Removing the baseline releases its document reference. File names and page reference IDs appear in the interface and reports. Reloading clears both captures and the analysis profile.
+
+## Local interpreter
+
+The Turkish local interpreter is deterministic, rule-based software, not a language model. It runs in the same browser worker using only the reduced analysis view and optional endpoint comparison. It makes no API calls, loads no model weights and does not read raw request/response bodies or raw headers. It can explain supported network topics, not arbitrary questions. Request URL paths, domain names and selected response metadata may still be sensitive.
+
+The page keeps at most 12 conversation turns in memory and passes only the previous topic/request ID as follow-up context. Changing the capture, page scope, baseline or analysis profile clears the conversation; reload and Clear chat do as well. Theme changes do not clear the chat. Evidence buttons open local request details; they never replay a captured request. User questions and HAR-derived strings are rendered as escaped text.
+
+Manrope is bundled with the app under the SIL Open Font License; no Google Fonts or third-party font request occurs at runtime. The app still needs its own assets on the initial visit and has no service worker for offline installation.
 
 ## Sanitized HAR
 

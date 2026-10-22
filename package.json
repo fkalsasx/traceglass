@@ -1,6 +1,6 @@
 {
   "name": "traceglass",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A local HAR workbench. Find slow requests, compare captures, and share less sensitive traces.",
   "type": "module",
   "license": "MIT",

@@ -21,7 +21,7 @@ for (const name of await readdir(path.join(root, 'web'))) {
     await writeFile(path.join(target, name), versionImports(relocated).replace("new URL('./worker.js',", `new URL('./worker.js?v=${revision}',`));
   } else if (name === 'index.html') {
     const content = await readFile(source, 'utf8');
-    await writeFile(path.join(target, name), content.replaceAll('./app.js', `./app.js?v=${revision}`).replaceAll('./styles.css', `./styles.css?v=${revision}`).replaceAll('./workbench.css', `./workbench.css?v=${revision}`));
+    await writeFile(path.join(target, name), content.replace(/\.\/(app\.js|theme\.js|styles\.css|workbench\.css|experience\.css)/g, asset => `${asset}?v=${revision}`));
   } else if (name.endsWith('.css')) {
     const content = await readFile(source, 'utf8');
     await writeFile(path.join(target, name), content.replaceAll('./fonts.css', `./fonts.css?v=${revision}`));

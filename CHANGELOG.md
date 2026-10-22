@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.0 — 2026-10-22
+
+- Add a free Turkish local interpreter with deterministic, scoped explanations and no language model, API call or model download.
+- Explain investigation priorities, TTFB, HTTP errors, large transfers, cache metadata, budgets, privacy and baseline changes; include clickable request evidence and follow-up questions.
+- Keep 12 conversation turns in memory; clear stale context when captures, scopes, baselines or profiles change.
+- Add Paper, Forest and Midnight themes plus automatic system preference, storing only the theme name locally.
+- Bundle the Manrope variable font and its SIL OFL license without runtime font CDNs.
+- Add staggered entrances, chart reveals, conversation transitions and responsive chat, respecting reduced-motion preferences.
+- Support direct assistant links with `?view=assistant` and keyboard shortcut 6.
+
+
 ## 2.0.0 — 2026-10-22
 
 - Add a network overview with concurrency, active/idle time, domain transfer, resource types and phase breakdowns.

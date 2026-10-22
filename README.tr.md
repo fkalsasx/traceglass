@@ -20,6 +20,16 @@ npm start
 
 **http://127.0.0.1:4273** adresini aç. Kurulum, API anahtarı ve hesap gerekmez. Örnek kayıt otomatik yüklenir.
 
+## 2.1: ücretsiz yerel yorumlayıcı ve temalar
+
+**Yerel asistan** bölümünü açıp “Neden yavaş?”, “503 ne demek?” veya “Önce neyi düzeltmeliyim?” diye sor. Yanıt; açık kaydın ölçümlerini, tıklanabilir istek kanıtlarını ve kontrol adımlarını içerir. Bu, kural tabanlı bir yorumlayıcıdır; dil modeli değildir. API anahtarı, model indirmesi veya ücretli hizmet gerekmez.
+
+Paper, Forest ve Midnight temaları; sistem temasını izleme; uygulamayla gelen Manrope değişken fontu; kart, grafik ve diyalog geçişleri eklendi. Hareket azaltma tercihi desteklenir. Yalnızca tema adı yerel depolamaya yazılır; kayıt ve sohbet bellekte kalır.
+
+![Forest temasında yerel yorumlayıcı](docs/assistant.jpg)
+
+Yorumlayıcı; yavaşlık/TTFB, HTTP hataları, aktarım boyutu, önbellek, bütçe, karşılaştırma ve gizlilik konularını kapsar. Genel sohbet veya kod üretimi yapmaz. Kayıt, sayfa, baseline veya profil değişince sohbet temizlenir. Son 12 soru-yanıt bellekte tutulur.
+
 ## Neler yapar?
 
 - Eşzamanlı istek grafiği, alan adı/tür dağılımı ve bekleme süreleriyle genel bakış sunar.

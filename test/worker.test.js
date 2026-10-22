@@ -30,6 +30,11 @@ test('browser worker supports scoped exports, atomic invalid imports and live co
     await send('baseline', { demo: true, name: 'before.har' });
     const scoped = await send('scope', { pageId: 'first' });
     assert.equal(scoped.analysis.summary.count, 5);
+    const answer = await send('assistant', { question: 'Özet' });
+    assert.match(answer.lead, /^5 istek/);
+    assert.ok(answer.evidence.every(e => e.entryId < 5));
+    assert.equal(answer.analysis, undefined);
+    await assert.rejects(send('assistant', { question: 'a'.repeat(2001) }), /2.000/);
     assert.equal(JSON.parse((await send('sanitize')).text).log.entries.length, 5);
     await assert.rejects(send('load', { text: '{', name: 'broken' }), /valid JSON/);
     await assert.rejects(send('scope', { pageId: 'missing' }), /No requests match/);
